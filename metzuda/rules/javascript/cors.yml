@@ -1,0 +1,19 @@
+rules:
+  - id: mtz-cors-wildcard-js
+    patterns:
+      - pattern-either:
+          - pattern: cors()
+          - pattern: "cors({ origin: '*' })"
+          - pattern: res.header("Access-Control-Allow-Origin", "*")
+          - pattern: res.setHeader("Access-Control-Allow-Origin", "*")
+          - pattern: $RES.header("Access-Control-Allow-Origin", "*")
+          - pattern: $RES.setHeader("Access-Control-Allow-Origin", "*")
+    message: CORS wildcard detected. Permitting all origins ('*') can expose sensitive data to unauthorized sites. Restrict allowed origins to specific trusted domains.
+    severity: INFO
+    languages:
+      - javascript
+      - typescript
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-942
+      confidence: HIGH

@@ -1,0 +1,16 @@
+rules:
+  - id: mtz-eval-dynamic-py
+    patterns:
+      - pattern-either:
+          - pattern: eval($ARG)
+          - pattern: exec($ARG)
+      - pattern-not: eval("...")
+      - pattern-not: exec("...")
+    message: Dynamic code execution via eval or exec with non-literal argument. This can lead to arbitrary code execution if untrusted input is passed.
+    severity: WARNING
+    languages:
+      - python
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-95
+      confidence: HIGH

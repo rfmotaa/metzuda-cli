@@ -1,0 +1,16 @@
+rules:
+  - id: mtz-sql-fstring-py
+    patterns:
+      - pattern-either:
+          - pattern: $CURSOR.execute(f"...", ...)
+          - pattern: $CURSOR.execute("..." % $VAL, ...)
+          - pattern: $CURSOR.execute("..." + $VAL, ...)
+          - pattern: $CURSOR.execute($VAL + "...", ...)
+    message: SQL query dynamically constructed using f-string, % formatting, or string concatenation. This can lead to SQL Injection. Use parameterized query arguments instead.
+    severity: WARNING
+    languages:
+      - python
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-89
+      confidence: HIGH

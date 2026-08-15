@@ -1,0 +1,33 @@
+rules:
+  - id: mtz-no-auth-spring-java
+    patterns:
+      - pattern: |
+          @$MAP(...)
+          $RET $METHOD(...) {
+              ...
+          }
+      - metavariable-regex:
+          metavariable: $MAP
+          regex: ^(RequestMapping|GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping)$
+      - pattern-not: |
+          @$MAP(...)
+          @PreAuthorize(...)
+          $RET $METHOD(...) {
+              ...
+          }
+      - pattern-not: |
+          @PreAuthorize(...)
+          @$MAP(...)
+          $RET $METHOD(...) {
+              ...
+          }
+    message: >-
+      Spring endpoint defined without @PreAuthorize annotation.
+      Note: This rule has a higher potential rate of false positives if security is configured globally via SecurityFilterChain instead of method-level annotations.
+    severity: WARNING
+    languages:
+      - java
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-306
+      confidence: MEDIUM

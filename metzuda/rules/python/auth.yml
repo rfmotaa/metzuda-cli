@@ -1,0 +1,35 @@
+rules:
+  - id: mtz-no-auth-flask-py
+    patterns:
+      - pattern: |
+          @$ROUTE_OBJ.route($PATH, ...)
+          def $FUNC(...):
+              ...
+      - pattern-not: |
+          @$ROUTE_OBJ.route($PATH, ...)
+          @login_required
+          def $FUNC(...):
+              ...
+      - pattern-not: |
+          @login_required
+          @$ROUTE_OBJ.route($PATH, ...)
+          def $FUNC(...):
+              ...
+      - pattern-not: |
+          @$ROUTE_OBJ.route('/login', ...)
+          def $FUNC(...):
+              ...
+      - pattern-not: |
+          @$ROUTE_OBJ.route('/register', ...)
+          def $FUNC(...):
+              ...
+    message: >-
+      Flask route defined without @login_required decorator.
+      Note: This rule has a higher potential rate of false positives if custom authorization decorators are used.
+    severity: WARNING
+    languages:
+      - python
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-306
+      confidence: MEDIUM

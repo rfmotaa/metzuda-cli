@@ -1,0 +1,66 @@
+rules:
+  - id: mtz-no-auth-route-js
+    patterns:
+      - pattern-either:
+          - pattern: $APP.get($PATH, ...)
+          - pattern: $APP.post($PATH, ...)
+          - pattern: $APP.put($PATH, ...)
+          - pattern: $APP.delete($PATH, ...)
+          - pattern: $APP.patch($PATH, ...)
+      # Exclude login routes
+      - pattern-not: $APP.get('/login', ...)
+      - pattern-not: $APP.post('/login', ...)
+      - pattern-not: $APP.put('/login', ...)
+      - pattern-not: $APP.delete('/login', ...)
+      - pattern-not: $APP.patch('/login', ...)
+      # GET exclusions
+      - pattern-not: $APP.get($PATH, ..., auth, ...)
+      - pattern-not: $APP.get($PATH, ..., authenticate, ...)
+      - pattern-not: $APP.get($PATH, ..., requireAuth, ...)
+      - pattern-not: $APP.get($PATH, ..., isAuthenticated, ...)
+      - pattern-not: $APP.get($PATH, ..., verifyToken, ...)
+      - pattern-not: $APP.get($PATH, ..., passport, ...)
+      - pattern-not: $APP.get($PATH, ..., passport.authenticate(...), ...)
+      # POST exclusions
+      - pattern-not: $APP.post($PATH, ..., auth, ...)
+      - pattern-not: $APP.post($PATH, ..., authenticate, ...)
+      - pattern-not: $APP.post($PATH, ..., requireAuth, ...)
+      - pattern-not: $APP.post($PATH, ..., isAuthenticated, ...)
+      - pattern-not: $APP.post($PATH, ..., verifyToken, ...)
+      - pattern-not: $APP.post($PATH, ..., passport, ...)
+      - pattern-not: $APP.post($PATH, ..., passport.authenticate(...), ...)
+      # PUT exclusions
+      - pattern-not: $APP.put($PATH, ..., auth, ...)
+      - pattern-not: $APP.put($PATH, ..., authenticate, ...)
+      - pattern-not: $APP.put($PATH, ..., requireAuth, ...)
+      - pattern-not: $APP.put($PATH, ..., isAuthenticated, ...)
+      - pattern-not: $APP.put($PATH, ..., verifyToken, ...)
+      - pattern-not: $APP.put($PATH, ..., passport, ...)
+      - pattern-not: $APP.put($PATH, ..., passport.authenticate(...), ...)
+      # DELETE exclusions
+      - pattern-not: $APP.delete($PATH, ..., auth, ...)
+      - pattern-not: $APP.delete($PATH, ..., authenticate, ...)
+      - pattern-not: $APP.delete($PATH, ..., requireAuth, ...)
+      - pattern-not: $APP.delete($PATH, ..., isAuthenticated, ...)
+      - pattern-not: $APP.delete($PATH, ..., verifyToken, ...)
+      - pattern-not: $APP.delete($PATH, ..., passport, ...)
+      - pattern-not: $APP.delete($PATH, ..., passport.authenticate(...), ...)
+      # PATCH exclusions
+      - pattern-not: $APP.patch($PATH, ..., auth, ...)
+      - pattern-not: $APP.patch($PATH, ..., authenticate, ...)
+      - pattern-not: $APP.patch($PATH, ..., requireAuth, ...)
+      - pattern-not: $APP.patch($PATH, ..., isAuthenticated, ...)
+      - pattern-not: $APP.patch($PATH, ..., verifyToken, ...)
+      - pattern-not: $APP.patch($PATH, ..., passport, ...)
+      - pattern-not: $APP.patch($PATH, ..., passport.authenticate(...), ...)
+    message: >-
+      Express/Fastify route defined without authentication middleware.
+      Note: This rule has a higher potential rate of false positives. It looks for common authentication middlewares (e.g., auth, authenticate, requireAuth, verifyToken, passport). If you use a custom or differently named middleware, this finding might be a false positive.
+    severity: WARNING
+    languages:
+      - javascript
+      - typescript
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-306
+      confidence: MEDIUM

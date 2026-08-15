@@ -1,0 +1,67 @@
+# ============================================================
+# metzuda-cli — .gitignore (PUBLIC REPO)
+# ============================================================
+# Atenção: repo público — nunca commitar secrets, tokens,
+# resultados de análise de projetos reais, ou dados de usuários.
+# ============================================================
+
+# --- Ambiente virtual Python ---
+.venv/
+venv/
+env/
+.env/
+
+# --- Artefatos de build/empacotamento ---
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Variáveis de ambiente e secrets ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# --- Cache de testes ---
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Estado local do Metzuda (gerado em runtime para cada projeto) ---
+# Não versionar dados de scan de projetos reais
+.metzuda/state.json
+.metzuda/last-report.json
+.metzuda/fixes/
+
+# --- Projetos de teste clonados externamente (repoTests/medvoll_api) ---
+# São repos de terceiros usados como fixture — não devem ser sub-módulos
+# Manter apenas os testes Python que os referenciam
+repoTests/
+
+# --- Cache Semgrep ---
+.semgrep_logs/
+semgrep_output/
+
+# --- Editores ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.sw?
+*.swp
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Temporários ---
+tmp/
+temp/
+*.tmp

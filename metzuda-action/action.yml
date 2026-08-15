@@ -1,0 +1,78 @@
+name: 'Metzuda Security Scan'
+description: 'Security scanner for AI-generated code — detects vulnerabilities introduced by Cursor, Claude Code and Copilot'
+author: 'rfmota'
+
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  fail-on:
+    description: 'Minimum severity that fails the build: LOW, HIGH, or CRITICAL'
+    required: false
+    default: 'HIGH'
+  no-ai:
+    description: 'Disable AI semantic analysis (Layer 2). Faster, no API key needed.'
+    required: false
+    default: 'false'
+  anthropic-api-key:
+    description: 'Anthropic API key for semantic analysis (Layer 2). Optional.'
+    required: false
+    default: ''
+  path:
+    description: 'Directory to scan. Defaults to repository root.'
+    required: false
+    default: '.'
+  upload-sarif:
+    description: 'Upload SARIF report to GitHub Security tab'
+    required: false
+    default: 'true'
+
+outputs:
+  findings-count:
+    description: 'Total number of findings'
+  critical-count:
+    description: 'Number of CRITICAL findings'
+  sarif-path:
+    description: 'Path to generated SARIF file'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Metzuda
+      shell: bash
+      run: pip install metzuda
+
+    - name: Run Metzuda scan
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+      run: |
+        FLAGS="--full --output sarif"
+        FLAGS="$FLAGS --fail-on ${{ inputs.fail-on }}"
+        FLAGS="$FLAGS --path ${{ inputs.path }}"
+        if [ "${{ inputs.no-ai }}" = "true" ]; then
+          FLAGS="$FLAGS --no-ai"
+        fi
+        
+        metzuda init --yes || true
+        metzuda scan $FLAGS > metzuda.sarif 2>&1 || SCAN_EXIT=$?
+        
+        # Always generate terminal report regardless of exit code
+        metzuda report || true
+        
+        echo "sarif-path=metzuda.sarif" >> $GITHUB_OUTPUT
+        exit ${SCAN_EXIT:-0}
+      id: scan
+
+    - name: Upload SARIF to GitHub Security tab
+      if: inputs.upload-sarif == 'true' && always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: metzuda.sarif
+      continue-on-error: true

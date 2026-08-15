@@ -1,0 +1,17 @@
+rules:
+  - id: mtz-sql-concat-java
+    patterns:
+      - pattern-either:
+          - pattern: $SQL_STR + $VAL
+          - pattern: String.format($SQL_STR, ...)
+      - metavariable-regex:
+          metavariable: $SQL_STR
+          regex: (?i).*(select|insert|update|delete|create|drop|from|where).*
+    message: Java SQL query dynamically constructed using string concatenation or String.format. This can lead to SQL Injection. Use PreparedStatement with parameterized parameters instead.
+    severity: WARNING
+    languages:
+      - java
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-89
+      confidence: HIGH

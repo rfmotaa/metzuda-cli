@@ -1,0 +1,17 @@
+rules:
+  - id: mtz-eval-dynamic-js
+    patterns:
+      - pattern-either:
+          - pattern: eval($ARG)
+          - pattern: new Function($ARG)
+      - pattern-not: eval("...")
+      - pattern-not: new Function("...")
+    message: Dynamic code execution via eval or new Function with non-literal argument. This can lead to arbitrary code execution if user input reaches it.
+    severity: WARNING
+    languages:
+      - javascript
+      - typescript
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-95
+      confidence: HIGH

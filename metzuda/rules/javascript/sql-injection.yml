@@ -1,0 +1,19 @@
+rules:
+  - id: mtz-sql-concat-js
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query("..." + $X, ...)
+          - pattern: $DB.query($X + "...", ...)
+          - pattern: $DB.execute("..." + $X, ...)
+          - pattern: $DB.execute($X + "...", ...)
+          - pattern: $DB.query(`...${$X}...`, ...)
+          - pattern: $DB.execute(`...${$X}...`, ...)
+    message: SQL query dynamically constructed with string concatenation or template literal. This can lead to SQL Injection. Use parameterized queries/prepared statements instead.
+    severity: WARNING
+    languages:
+      - javascript
+      - typescript
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-89
+      confidence: HIGH

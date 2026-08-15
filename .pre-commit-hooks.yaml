@@ -1,0 +1,8 @@
+- id: metzuda
+  name: Metzuda Security Scan
+  description: Scan for security vulnerabilities in AI-generated code
+  entry: metzuda scan
+  args: [--no-ai, --fail-on, HIGH]
+  language: python
+  types: [python, javascript, typescript, java]
+  pass_filenames: false
