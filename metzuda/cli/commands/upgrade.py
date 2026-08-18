@@ -1,4 +1,9 @@
-"""Implements the metzuda upgrade command."""
+"""
+metzuda/cli/commands/upgrade.py
+
+Implementa o comando metzuda upgrade.
+Exibe planos disponíveis e redireciona para o checkout Stripe.
+"""
 
 import webbrowser
 import typer
@@ -7,8 +12,9 @@ from rich.console import Console
 from rich.table import Table
 
 from metzuda.cli.renderer import console
+from metzuda.exceptions import NetworkError, UnauthorizedError
 from metzuda.infra.auth import is_logged_in
-from metzuda.infra.backend_client import BackendClient
+from metzuda.services.upgrade_service import get_checkout_url
 
 app = typer.Typer()
 
@@ -49,19 +55,19 @@ def upgrade() -> None:
         raise typer.Exit(code=1)
 
     plan_key = choice.upper()
-    client = BackendClient()
 
     with console.status("  Opening Stripe checkout..."):
         try:
-            result = client.create_checkout_session(plan=plan_key)
-        except Exception as e:
-            console.print(f"[red]✗[/red] Failed to create checkout session: {e}")
+            url = get_checkout_url(plan=plan_key)
+        except UnauthorizedError:
+            console.print("[red]✗[/red] Not logged in. Run: metzuda login")
             raise typer.Exit(code=1)
-
-    url = result.get("url")
-    if not url:
-        console.print("[red]✗[/red] Failed to create checkout session.")
-        raise typer.Exit(code=1)
+        except NetworkError as e:
+            console.print(f"[red]✗[/red] Connection failed: {e}")
+            raise typer.Exit(code=1)
+        except ValueError as e:
+            console.print(f"[red]✗[/red] {e}")
+            raise typer.Exit(code=1)
 
     console.print(f"\n  [dim]→ {url}[/dim]")
     try:

@@ -1,4 +1,9 @@
-"""Implements the metzuda status command."""
+"""
+metzuda/cli/commands/status.py
+
+Implementa o comando metzuda status.
+Exibe informações de autenticação, quota e estatísticas do repositório.
+"""
 
 import httpx
 import typer
@@ -6,8 +11,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from metzuda.config.endpoints import endpoints
 from metzuda.infra.auth import get_auth_header, get_login_method, get_user_email, is_logged_in
-from metzuda.infra.config import get_api_url, load_config, save_config
+from metzuda.infra.config import load_config, save_config
 from metzuda.infra.state_manager import load_report, load_state
 from metzuda.models.finding import Severity
 
@@ -20,7 +26,6 @@ def status() -> None:
     """
     [bold green]Display Metzuda status[/bold green], including authentication, quota usage, and repository stats.
     """
-    api_url = get_api_url().rstrip("/")
     logged_in = is_logged_in()
     email = get_user_email() or "N/A"
     login_method = get_login_method()
@@ -45,7 +50,7 @@ def status() -> None:
         if auth_header:
             try:
                 with httpx.Client(timeout=5) as client:
-                    me_res = client.get(f"{api_url}/users/me", headers={"Authorization": auth_header})
+                    me_res = client.get(endpoints.users_me, headers={"Authorization": auth_header})
                     if me_res.status_code == 200:
                         user_data = me_res.json()
                         api_online = True
@@ -62,7 +67,7 @@ def status() -> None:
                             except Exception:
                                 pass
 
-                    usage_res = client.get(f"{api_url}/users/me/usage", headers={"Authorization": auth_header})
+                    usage_res = client.get(endpoints.users_usage, headers={"Authorization": auth_header})
                     if usage_res.status_code == 200:
                         usage_data = usage_res.json()
                         scans_used = usage_data.get("scansUsed", 0)

@@ -1,0 +1,84 @@
+rules:
+  - id: mtz-no-talisman-py
+    patterns:
+      - pattern: |
+          $APP = Flask(__name__)
+      - pattern-not-inside: |
+          from flask_talisman import Talisman
+          ...
+      - pattern-not-inside: |
+          $APP = Flask(__name__)
+          ...
+          Talisman($APP)
+    message: >-
+      Flask application instantiated without Talisman, which sets security headers.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-693
+      confidence: MEDIUM
+
+  - id: mtz-no-https-redirect-py
+    patterns:
+      - pattern: |
+          $APP.run(...)
+      - pattern-not: |
+          $APP.run(..., ssl_context=$CTX, ...)
+    message: >-
+      Application run locally without ssl_context, meaning it may not enforce HTTPS.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-319
+      confidence: LOW
+
+  - id: mtz-default-admin-route-py
+    patterns:
+      - pattern: |
+          @$APP.route('/admin')
+          def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          @login_required
+          @$APP.route('/admin')
+          def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          @admin_required
+          @$APP.route('/admin')
+          def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          @$APP.route('/admin')
+          @login_required
+          def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          @$APP.route('/admin')
+          @admin_required
+          def $FUNC(...):
+            ...
+    message: >-
+      Default admin route found without obvious login or admin required decorators.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-284
+      confidence: MEDIUM
+
+  - id: mtz-cors-wildcard-py
+    patterns:
+      - pattern-either:
+          - pattern: CORS($APP, origins='*')
+          - pattern: CORS($APP)
+    message: >-
+      CORS enabled with wildcard origins or no specific origins, which can allow cross-origin requests from any domain.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-942
+      confidence: MEDIUM

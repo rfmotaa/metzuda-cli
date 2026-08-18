@@ -13,7 +13,7 @@ import webbrowser
 import typer
 
 from metzuda.cli.renderer import ErrorMessage, console
-from metzuda.core.architecture_generator import ARCHITECTURE_FILE
+from metzuda.core.architecture_generator import ARCHITECTURE_FILENAME
 
 app = typer.Typer()
 CREDENTIALS_FILE = Path.home() / ".metzuda" / "credentials"
@@ -311,10 +311,10 @@ def _oauth_login(provider: str) -> None:
     thread.start()
     server_ready.wait()
 
-    from metzuda.infra.config import get_api_url
+    from metzuda.services.login_service import build_oauth_url
 
     label = dict(_PROVIDERS)[provider]
-    url = f"{get_api_url()}/auth/{provider}?redirect_uri={redirect_uri}&state={state}"
+    url = build_oauth_url(provider=provider, redirect_uri=redirect_uri, state=state)
 
     console.print(f"→ Opening browser for {label} login...")
     console.print(f"  [dim]If browser doesn't open:[/dim] {url}")
@@ -350,7 +350,7 @@ def _oauth_login(provider: str) -> None:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _check_architecture_file() -> None:
-    if not ARCHITECTURE_FILE.exists():
+    if not (Path.cwd() / ARCHITECTURE_FILENAME).exists():
         console.print(
             "[yellow]ℹ[/yellow] No ProjectArchitecture.md found. "
             "Run [bold]metzuda init[/bold] to create it."

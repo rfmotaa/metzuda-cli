@@ -1,26 +1,30 @@
-.PHONY: test build publish install-dev clean
+.PHONY: install dev test test-cov lint format typecheck clean check
 
-install-dev:
+install:
+	pip install -e .
+
+dev:
 	pip install -e ".[dev]"
 
 test:
-	pytest tests/ -v --tb=short
+	pytest repoTests/tests/ -v
 
-test-coverage:
-	pytest tests/ --cov=metzuda --cov-report=term-missing --cov-report=html
+test-cov:
+	pytest repoTests/tests/ --cov=metzuda --cov-report=term-missing
 
 lint:
-	ruff check metzuda/ tests/
-	ruff format --check metzuda/ tests/
+	ruff check metzuda/ repoTests/tests/
 
-build:
-	python -m build
+format:
+	ruff format metzuda/ repoTests/tests/
 
-publish-test:
-	twine upload --repository testpypi dist/*
-
-publish:
-	twine upload dist/*
+typecheck:
+	mypy metzuda/
 
 clean:
-	rm -rf dist/ build/ *.egg-info/ htmlcov/ .coverage
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	find . -name "*.pyc" -delete 2>/dev/null || true
+
+# Roda tudo antes de commitar
+check: format lint typecheck test

@@ -1,0 +1,94 @@
+rules:
+  # ── 18. Add security headers ───────────────────────────────────────────────
+  - id: mtz-no-helmet-js
+    patterns:
+      - pattern-either:
+          - pattern: express()
+          - pattern: $APP.use(...)
+      - pattern-not: $APP.use(helmet(...))
+      - pattern-not: $APP.use(helmet())
+    message: >-
+      Express app detected without helmet middleware. Helmet sets secure HTTP
+      headers (X-Frame-Options, X-Content-Type-Options, CSP, etc.) that protect
+      against common web vulnerabilities. Add: app.use(helmet()).
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-693
+      confidence: LOW
+
+  # ── 19. Force HTTPS ────────────────────────────────────────────────────────
+  - id: mtz-http-server-js
+    pattern-either:
+      - pattern: http.createServer($APP)
+      - pattern: http.createServer($APP).listen(...)
+    message: >-
+      Plain HTTP server created. In production, serve traffic over HTTPS only.
+      Use https.createServer() with TLS certificates, or terminate TLS at a
+      reverse proxy (nginx, Caddy) and redirect all HTTP to HTTPS.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-319
+      confidence: MEDIUM
+
+  # ── 21. Add HSTS ───────────────────────────────────────────────────────────
+  - id: mtz-no-hsts-js
+    patterns:
+      - pattern: $APP.use(helmet({...}))
+      - pattern-not: $APP.use(helmet({..., hsts: ..., ...}))
+    message: >-
+      Helmet configured without explicit HSTS (HTTP Strict Transport Security).
+      HSTS prevents protocol downgrade attacks. Configure:
+      helmet({ hsts: { maxAge: 31536000, includeSubDomains: true } }).
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-319
+      confidence: MEDIUM
+
+  # ── 30. Disable directory listing ─────────────────────────────────────────
+  - id: mtz-directory-listing-enabled-js
+    pattern-either:
+      - pattern: serveIndex($PATH, {...})
+      - pattern: $APP.use(serveIndex(...))
+    message: >-
+      Directory listing is enabled via serve-index. This exposes the filesystem
+      structure to clients. Remove directory listing from production servers.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-548
+      confidence: HIGH
+
+  # ── 32. Remove default admin routes ────────────────────────────────────────
+  - id: mtz-default-admin-route-js
+    pattern-either:
+      - pattern: $APP.use('/admin', ...)
+      - pattern: $APP.get('/admin', ...)
+      - pattern: $APP.post('/admin', ...)
+      - pattern: router.use('/admin', ...)
+    patterns:
+      - pattern-either:
+          - pattern: $APP.use('/admin', ...)
+          - pattern: $APP.get('/admin', ...)
+          - pattern: router.use('/admin', ...)
+      - pattern-not: $APP.use('/admin', ..., isAdmin, ...)
+      - pattern-not: $APP.use('/admin', ..., requireAdmin, ...)
+      - pattern-not: $APP.use('/admin', ..., adminAuth, ...)
+      - pattern-not: $APP.get('/admin', ..., isAdmin, ...)
+      - pattern-not: $APP.get('/admin', ..., requireAdmin, ...)
+    message: >-
+      Admin route (/admin) detected without obvious admin-specific auth middleware.
+      Ensure all admin routes are protected by role-based authorization checks,
+      not just authentication.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-284
+      confidence: LOW

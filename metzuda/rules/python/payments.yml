@@ -1,0 +1,100 @@
+rules:
+  - id: mtz-stripe-webhook-no-verify-py
+    patterns:
+      - pattern: |
+          @$APP.route('/webhook', methods=[..., 'POST', ...])
+          def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          @$APP.route('/webhook', ...)
+          def $FUNC(...):
+            ...
+            stripe.Webhook.construct_event(...)
+            ...
+    message: >-
+      Stripe webhook handler missing stripe.Webhook.construct_event signature verification.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-345
+      confidence: HIGH
+
+  - id: mtz-price-from-client-py
+    patterns:
+      - pattern: stripe.PaymentIntent.create(..., amount=request.json.get(...), ...)
+    message: >-
+      Payment amount taken directly from client request, allowing attackers to change the price.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-602
+      confidence: HIGH
+
+  - id: mtz-prompt-injection-py
+    patterns:
+      - pattern-either:
+          - pattern: $CLIENT.chat.completions.create(..., messages=[..., {"role": "user", "content": request.json.get(...)}, ...], ...)
+          - pattern: $CLIENT.messages.create(..., messages=[..., {"role": "user", "content": request.json.get(...)}, ...], ...)
+    message: >-
+      Directly passing user input into an AI prompt can lead to prompt injection attacks.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: LOW
+
+  - id: mtz-ai-no-usage-limit-py
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $CLIENT.chat.completions.create(...)
+          - pattern: |
+              $CLIENT.messages.create(...)
+      - pattern-not-inside: |
+          @$LIMITER.limit(...)
+          def $FUNC(...):
+            ...
+    message: >-
+      AI completion call made without apparent rate limiting, risking Denial of Wallet/Service.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-400
+      confidence: LOW
+
+  - id: mtz-no-security-logging-py
+    patterns:
+      - pattern: |
+          @$APP.route('/login', methods=[..., 'POST', ...])
+          def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          @$APP.route('/login', ...)
+          def $FUNC(...):
+            ...
+            logging.info(...)
+            ...
+      - pattern-not-inside: |
+          @$APP.route('/login', ...)
+          def $FUNC(...):
+            ...
+            $APP.logger(...)
+            ...
+      - pattern-not-inside: |
+          @$APP.route('/login', ...)
+          def $FUNC(...):
+            ...
+            $LOGGER(...)
+            ...
+    message: >-
+      Login route lacks security logging for failed/successful attempts.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-778
+      confidence: LOW

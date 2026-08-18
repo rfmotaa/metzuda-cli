@@ -1,0 +1,77 @@
+rules:
+  - id: mtz-price-from-client-java
+    patterns:
+      - pattern-inside: |
+          public $RET $METHOD(..., @RequestBody $TYPE $DTO, ...) { ... }
+      - pattern: PaymentIntent.create(..., $DTO.getAmount(), ...)
+    message: >-
+      Payment amount taken directly from the client. Attackers can manipulate this to pay an incorrect amount. Fetch prices securely on the backend.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-602
+      confidence: MEDIUM
+
+  - id: mtz-prompt-injection-java
+    patterns:
+      - pattern-inside: |
+          public $RET $METHOD(..., @RequestBody $TYPE $DTO, ...) { ... }
+      - pattern-either:
+          - pattern: ChatCompletionRequest.builder().content($DTO.getContent()).build()
+          - pattern: MessageCreateParams.builder().content($DTO.getContent()).build()
+    message: >-
+      Generative AI prompt includes direct user input from request body without validation. This is susceptible to prompt injection.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: MEDIUM
+
+  - id: mtz-ai-no-usage-limit-java
+    patterns:
+      - pattern-inside: |
+          @PostMapping(...)
+          public $RET $METHOD(...) { ... }
+      - pattern-either:
+          - pattern: $OPENAI.chatCompletion(...)
+          - pattern: $ANTHROPIC.messages().create(...)
+      - pattern-not-inside: |
+          @RateLimiter(...)
+          @PostMapping(...)
+          public $RET $METHOD(...) { ... }
+    message: >-
+      AI API call inside a POST endpoint lacking a rate limiter. AI requests are resource intensive; without rate limits, they risk financial DOS.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-400
+      confidence: MEDIUM
+
+  - id: mtz-no-security-logging-java
+    patterns:
+      - pattern-inside: |
+          @PostMapping("/login")
+          public $RET $METHOD(...) { ... }
+      - pattern-not-inside: |
+          ...
+          log.info(...)
+          ...
+      - pattern-not-inside: |
+          ...
+          log.warn(...)
+          ...
+      - pattern-not-inside: |
+          ...
+          logger.info(...)
+          ...
+    message: >-
+      Login endpoint lacks logging. Security-relevant events (like logins) should be logged for auditing and incident response.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-778
+      confidence: MEDIUM

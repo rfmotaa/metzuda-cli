@@ -1,0 +1,99 @@
+rules:
+  # ── 7. Lock record access (IDOR) ───────────────────────────────────────────
+  - id: mtz-idor-find-by-param-js
+    pattern-either:
+      - pattern: $MODEL.findById($REQ.params.$ID)
+      - pattern: $MODEL.findOne({id: $REQ.params.$ID})
+      - pattern: $MODEL.findOne({_id: $REQ.params.$ID})
+      - pattern: $DB.find({id: $REQ.params.$ID})
+      - pattern: $DB.findById($REQ.params.$ID)
+    message: >-
+      Record fetched directly from URL parameter without user ownership check.
+      This is a potential Insecure Direct Object Reference (IDOR) vulnerability.
+      After fetching, verify that record.userId === req.user.id before returning data.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-639
+      confidence: MEDIUM
+
+  # ── 8. Block field tampering (mass assignment) ─────────────────────────────
+  - id: mtz-mass-assignment-js
+    pattern-either:
+      - pattern: $MODEL.create($REQ.body)
+      - pattern: $MODEL.update($REQ.params.$ID, $REQ.body)
+      - pattern: $MODEL.findByIdAndUpdate($ID, $REQ.body, ...)
+      - pattern: $MODEL.updateOne({...}, $REQ.body)
+      - pattern: Object.assign($RECORD, $REQ.body)
+    message: >-
+      Request body passed directly to database create/update without field
+      whitelisting. Mass assignment can allow attackers to set privileged fields
+      (isAdmin, role, balance). Destructure only allowed fields from req.body.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-915
+      confidence: HIGH
+
+  # ── 6. Enforce server-side auth ────────────────────────────────────────────
+  - id: mtz-auth-from-client-body-js
+    pattern-either:
+      - pattern: |
+          if ($REQ.body.isAdmin) { ... }
+      - pattern: |
+          if ($REQ.body.role === "admin") { ... }
+      - pattern: |
+          if ($REQ.body.userId === $ID) { ... }
+    message: >-
+      Authorization decision based on client-provided body field (isAdmin, role,
+      userId). These values can be tampered. Authorization must be derived from
+      the verified server-side session or JWT payload (req.user), never from req.body.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-602
+      confidence: HIGH
+
+  # ── 28. Prevent user enumeration ────────────────────────────────────────────
+  - id: mtz-user-enumeration-login-js
+    pattern-either:
+      - pattern: $RES.json({message: "User not found"})
+      - pattern: $RES.json({error: "User not found"})
+      - pattern: $RES.json({message: "Email not found"})
+      - pattern: $RES.status($S).json({message: "User not found"})
+      - pattern: $RES.status($S).json({error: "Invalid email"})
+    message: >-
+      Login/auth endpoint returns distinct error messages for invalid user vs
+      invalid password. This allows user enumeration. Return the same generic
+      message for both cases: "Invalid credentials".
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-204
+      confidence: HIGH
+
+  # ── 27. Expire reset links ─────────────────────────────────────────────────
+  - id: mtz-no-reset-token-expiry-js
+    patterns:
+      - pattern-either:
+          - pattern: resetToken = crypto.randomBytes(...)
+          - pattern: resetToken = uuid()
+          - pattern: resetToken = $FN(...)
+      - pattern-not: |
+          resetTokenExpiry = ...
+      - pattern-not: resetTokenExpiresAt = ...
+      - pattern-not: expiresAt = ...
+    message: >-
+      Password reset token generated without an expiration timestamp.
+      Reset tokens should expire (e.g., 1 hour). Store an expiry field alongside
+      the token and reject expired tokens on use.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-640
+      confidence: LOW

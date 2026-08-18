@@ -1,0 +1,48 @@
+rules:
+  - id: mtz-no-input-validation-java
+    patterns:
+      - pattern: |
+          @PostMapping(...)
+          public $RET $METHOD(..., @RequestBody $TYPE $VAR, ...) { ... }
+      - pattern-not: |
+          @PostMapping(...)
+          public $RET $METHOD(..., @Valid @RequestBody $TYPE $VAR, ...) { ... }
+    message: >-
+      Request body parameter is missing @Valid annotation. Unvalidated input can lead to multiple vulnerabilities.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: MEDIUM
+
+  - id: mtz-no-max-upload-size-java
+    patterns:
+      - pattern-inside: |
+          @PostMapping(...)
+          public $RET $METHOD(..., MultipartFile $FILE, ...) { ... }
+      - pattern-not-inside: |
+          ...
+          $FILE.getSize()
+          ...
+    message: >-
+      File upload endpoint does not explicitly check file size. Without size limits, attackers could perform denial-of-service.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-400
+      confidence: MEDIUM
+
+  - id: mtz-unsanitized-html-output-java
+    pattern-either:
+      - pattern: $RES.getWriter().write($REQ.getParameter($P))
+      - pattern: $WRITER.print($REQ.getParameter($P))
+    message: >-
+      Directly writing unsanitized request parameters to output can cause Cross-Site Scripting (XSS).
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-79
+      confidence: MEDIUM

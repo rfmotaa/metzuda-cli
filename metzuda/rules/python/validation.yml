@@ -1,0 +1,55 @@
+rules:
+  - id: mtz-no-input-validation-py
+    patterns:
+      - pattern-inside: |
+          @$APP.route(..., methods=[..., 'POST', ...])
+          def $FUNC(...):
+            ...
+      - pattern-either:
+          - pattern: request.json.get(...)
+          - pattern: request.form.get(...)
+      - pattern-not-inside: |
+          $SCHEMA = $M.Schema(...)
+          ...
+      - pattern-not-inside: |
+          class $MODEL(BaseModel):
+            ...
+    message: >-
+      POST route accesses request data directly without evident validation using Marshmallow, Pydantic, or WTForms.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: LOW
+
+  - id: mtz-unsanitized-db-write-py
+    patterns:
+      - pattern-either:
+          - pattern: db.session.add(request.json)
+          - pattern: $MODEL.create(**request.json)
+    message: >-
+      Directly passing request.json to database write operations without sanitization can lead to mass assignment or injection vulnerabilities.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: HIGH
+
+  - id: mtz-no-max-content-length-py
+    patterns:
+      - pattern: |
+          $APP = Flask(__name__)
+      - pattern-not-inside: |
+          $APP = Flask(__name__)
+          ...
+          $APP.config['MAX_CONTENT_LENGTH'] = ...
+    message: >-
+      Flask application instantiated without setting MAX_CONTENT_LENGTH, which can lead to Denial of Service via large requests.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-400
+      confidence: MEDIUM

@@ -1,0 +1,48 @@
+rules:
+  - id: mtz-insecure-cookie-java
+    patterns:
+      - pattern: |
+          Cookie $C = new Cookie($N, $V);
+          ...
+      - pattern-not-inside: |
+          $C.setHttpOnly(true);
+          ...
+      - pattern-not-inside: |
+          $C.setSecure(true);
+          ...
+    message: >-
+      Insecure cookie configuration. Cookies should be marked as HttpOnly and Secure to prevent XSS and man-in-the-middle attacks.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-614
+      confidence: MEDIUM
+
+  - id: mtz-cookie-missing-samesite-java
+    pattern-either:
+      - pattern: response.setHeader("Set-Cookie", $VAL)
+      - pattern: response.addHeader("Set-Cookie", $VAL)
+    patterns:
+      - pattern-not-regex: (?i)SameSite=.*
+    message: >-
+      Cookie missing SameSite attribute. It prevents the browser from sending this cookie along with cross-site requests.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-352
+      confidence: MEDIUM
+
+  - id: mtz-spring-csrf-disabled-java
+    pattern-either:
+      - pattern: $HTTP.csrf().disable()
+      - pattern: $HTTP.csrf($CSRF -> $CSRF.disable())
+    message: >-
+      CSRF protection is disabled. This can expose your application to Cross-Site Request Forgery attacks.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-352
+      confidence: MEDIUM

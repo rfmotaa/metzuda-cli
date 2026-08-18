@@ -1,0 +1,74 @@
+rules:
+  - id: mtz-spring-no-security-headers-java
+    patterns:
+      - pattern-inside: |
+          public SecurityFilterChain filterChain(HttpSecurity $HTTP) throws Exception { ... }
+      - pattern-not-inside: |
+          $HTTP.headers(...)
+    message: >-
+      Security headers are not explicitly configured in HttpSecurity. Relying entirely on defaults may expose the app to Clickjacking, MIME-sniffing, or XSS.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-693
+      confidence: MEDIUM
+
+  - id: mtz-spring-no-hsts-java
+    patterns:
+      - pattern-inside: |
+          $HTTP.headers(...)
+      - pattern-not-inside: |
+          $HTTP.headers(...).httpStrictTransportSecurity(...)
+      - pattern-not-inside: |
+          $HTTP.headers($H -> $H.hsts(...))
+    message: >-
+      HSTS is not explicitly configured in HttpSecurity headers. Connections could be downgraded to HTTP.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-319
+      confidence: MEDIUM
+
+  - id: mtz-default-admin-route-java
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              @RequestMapping("/admin")
+              public $RET $METHOD(...) { ... }
+          - pattern-inside: |
+              @GetMapping("/admin")
+              public $RET $METHOD(...) { ... }
+      - pattern-not-inside: |
+          @PreAuthorize("hasRole('ADMIN')")
+          ...
+      - pattern-not-inside: |
+          @Secured(...)
+          ...
+    message: >-
+      Admin route is not secured with @PreAuthorize or @Secured. This allows unauthorized access to administrative functions.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-284
+      confidence: MEDIUM
+
+  - id: mtz-cors-wildcard-java
+    pattern-either:
+      - pattern: |
+          @CrossOrigin
+          public $RET $METHOD(...) { ... }
+      - pattern: |
+          public void addCorsMappings(CorsRegistry $REGISTRY) {
+              $REGISTRY.addMapping(...).allowedOrigins("*");
+          }
+    message: >-
+      Wildcard allowed in CORS origin. This exposes API to any domain, potentially risking CSRF and data theft.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-942
+      confidence: MEDIUM

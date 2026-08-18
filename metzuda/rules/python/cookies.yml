@@ -1,0 +1,47 @@
+rules:
+  - id: mtz-insecure-session-cookie-py
+    patterns:
+      - pattern: $RESP.set_cookie(...)
+      - pattern-not: $RESP.set_cookie(..., httponly=True, ...)
+    message: >-
+      Flask response.set_cookie is missing httponly=True. This can allow attackers to access session cookies via XSS.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-614
+      confidence: MEDIUM
+
+  - id: mtz-cookie-missing-samesite-py
+    patterns:
+      - pattern: $RESP.set_cookie(...)
+      - pattern-not: $RESP.set_cookie(..., samesite=$VAL, ...)
+    message: >-
+      Flask response.set_cookie is missing the samesite parameter. This increases the risk of CSRF attacks.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-352
+      confidence: MEDIUM
+
+  - id: mtz-no-csrf-protection-py
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $APP = Flask(...)
+              ...
+              $APP.run(...)
+      - pattern-not-inside: |
+          from flask_wtf.csrf import CSRFProtect
+          ...
+      - pattern-not-inside: |
+          $CSRF = CSRFProtect(...)
+    message: >-
+      Flask application instantiated without importing or using CSRFProtect, leaving it vulnerable to CSRF attacks.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-352
+      confidence: MEDIUM

@@ -1,0 +1,109 @@
+rules:
+  # ── 33. Verify payment webhooks ────────────────────────────────────────────
+  - id: mtz-stripe-webhook-no-signature-js
+    patterns:
+      - pattern: $APP.post('/webhook', ...)
+      - pattern-not: stripe.webhooks.constructEvent(...)
+      - pattern-not: $STRIPE.webhooks.constructEvent(...)
+    message: >-
+      Stripe webhook endpoint detected without signature verification
+      (stripe.webhooks.constructEvent). Without verification, attackers can
+      send forged webhook events to trigger payment confirmations.
+      Always verify the Stripe-Signature header.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-345
+      confidence: MEDIUM
+
+  # ── 34. Set prices server-side ─────────────────────────────────────────────
+  - id: mtz-price-from-client-js
+    pattern-either:
+      - pattern: |
+          { amount: $REQ.body.amount }
+      - pattern: |
+          { price: $REQ.body.price }
+      - pattern: |
+          { total: $REQ.body.total }
+      - pattern: stripe.paymentIntents.create({..., amount: $REQ.body.$F, ...})
+    message: >-
+      Payment amount/price read directly from request body. Prices must always
+      be determined server-side from your database/catalog, never from
+      client-provided values. An attacker can modify the amount to pay $0.01.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-602
+      confidence: MEDIUM
+
+  # ── 35. Block prompt injection ─────────────────────────────────────────────
+  - id: mtz-prompt-injection-js
+    pattern-either:
+      - pattern: |
+          { role: "user", content: $REQ.body.$F }
+      - pattern: |
+          { role: "user", content: `...${$REQ.body.$F}...` }
+      - pattern: openai.chat.completions.create({..., messages: [..., {role: "user", content: $REQ.body.$F}, ...], ...})
+      - pattern: anthropic.messages.create({..., messages: [..., {role: "user", content: $REQ.body.$F}, ...], ...})
+    message: >-
+      User-provided content passed directly to AI API as message content without
+      sanitization. This enables prompt injection attacks where users can override
+      system instructions. Sanitize, filter, or wrap user input before including
+      in AI prompts.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: MEDIUM
+
+  # ── 36. Cap AI usage ───────────────────────────────────────────────────────
+  - id: mtz-ai-no-usage-limit-js
+    patterns:
+      - pattern-either:
+          - pattern: openai.chat.completions.create(...)
+          - pattern: anthropic.messages.create(...)
+          - pattern: $CLIENT.chat.completions.create(...)
+      - pattern-not: |
+          ... rateLimit(...) ...
+      - pattern-not: |
+          ... limiter ...
+      - pattern-not: |
+          ... checkQuota ...
+    message: >-
+      AI API call detected without visible usage limiting or quota check.
+      Without limits, a single user can exhaust your API budget. Implement
+      per-user rate limiting and monthly quota enforcement before AI calls.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-400
+      confidence: LOW
+
+  # ── 38. Log security events ────────────────────────────────────────────────
+  - id: mtz-no-security-logging-login-js
+    patterns:
+      - pattern-either:
+          - pattern: $APP.post('/login', ...)
+          - pattern: $APP.post('/auth/login', ...)
+      - pattern-not: |
+          ... console.log(...) ...
+      - pattern-not: |
+          ... logger.info(...) ...
+      - pattern-not: |
+          ... logger.warn(...) ...
+      - pattern-not: |
+          ... log(...) ...
+    message: >-
+      Login route detected without any logging. Failed login attempts should be
+      logged with IP address and timestamp for security monitoring and incident
+      response. Use a structured logger (winston, pino).
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-778
+      confidence: LOW

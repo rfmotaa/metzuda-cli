@@ -1,10 +1,17 @@
-"""Generates and manages ProjectArchitecture.md template and context."""
+"""
+metzuda/core/architecture_generator.py
+
+Gera e gerencia o arquivo ProjectArchitecture.md.
+O arquivo fica na raiz do projeto (não dentro de .metzuda/) pois é
+destinado à edição pelo desenvolvedor e deve ser commitado no repositório.
+"""
 
 import datetime
 from pathlib import Path
+
 from metzuda.models.config import MetzudaConfig
 
-ARCHITECTURE_FILE = Path("ProjectArchitecture.md")
+ARCHITECTURE_FILENAME = "ProjectArchitecture.md"
 TEMPLATE = """# Project Architecture
 
 > **Note:** This file will be used for context to help and improve the AI scan.
@@ -48,19 +55,31 @@ TEMPLATE = """# Project Architecture
 """
 
 
-def create_architecture_file(config: MetzudaConfig, root: Path = Path(".")) -> Path:
+def create_architecture_file(config: MetzudaConfig, root: Path | None = None) -> Path:
     """
-    Creates ProjectArchitecture.md with a pre-filled template.
-    Includes auto-scanned directory structure.
+    Cria ProjectArchitecture.md com template pré-preenchido na raiz do projeto.
+
+    O arquivo fica na raiz (não dentro de .metzuda/) pois:
+    - É destinado à edição pelo desenvolvedor.
+    - Deve ser commitado junto com o repositório.
+    - Deve ser visível em qualquer editor/IDE sem configuração especial.
+
+    Args:
+        config: Configuração do projeto (usado para linguagem e ignore_paths).
+        root: Diretório raiz do projeto. Padrão: Path.cwd().
+
+    Returns:
+        Path absoluto do arquivo criado.
     """
-    tree = _build_directory_tree(root, config)
+    resolved_root = (root or Path.cwd()).resolve()
+    tree = _build_directory_tree(resolved_root, config)
     content = TEMPLATE.format(
         date=datetime.date.today().isoformat(),
         language=config.language,
         directory_tree=tree,
     )
 
-    target = root / "ProjectArchitecture.md" if root != Path(".") else ARCHITECTURE_FILE
+    target = resolved_root / ARCHITECTURE_FILENAME
     target.write_text(content, encoding="utf-8")
     return target
 
@@ -111,14 +130,19 @@ def _build_directory_tree(root: Path, config: MetzudaConfig, max_depth: int = 3)
     return "\n".join(lines)
 
 
-def get_architecture_context(state: dict, root: Path = Path(".")) -> tuple[str | None, bool]:
+def get_architecture_context(state: dict, root: Path | None = None) -> tuple[str | None, bool]:
     """
-    Returns (content, changed) where changed=True if file hash differs from state.
-    Returns (None, False) if file doesn't exist.
+    Retorna (content, changed) onde changed=True se o hash do arquivo diferir do estado salvo.
+    Retorna (None, False) se o arquivo não existir.
+
+    Args:
+        state: Estado atual do scan (dict com 'architecture_hash').
+        root: Diretório raiz do projeto. Padrão: Path.cwd().
     """
     from metzuda.infra.state_manager import file_hash
 
-    arch_file = root / "ProjectArchitecture.md" if root != Path(".") else ARCHITECTURE_FILE
+    resolved_root = (root or Path.cwd()).resolve()
+    arch_file = resolved_root / ARCHITECTURE_FILENAME
 
     if not arch_file.exists():
         return None, False

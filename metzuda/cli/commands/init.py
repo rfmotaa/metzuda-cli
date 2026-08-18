@@ -1,12 +1,18 @@
-"""Implements the metzuda init command for setting up configuration and state."""
+"""
+metzuda/cli/commands/init.py
+
+Implementa o comando metzuda init.
+Configura o repositório com .metzuda/, ProjectArchitecture.md e atualiza o .gitignore.
+"""
 
 from pathlib import Path
 import shutil
+import subprocess
 import click
 from rich.console import Console
 import typer
 
-from metzuda.core.architecture_generator import ARCHITECTURE_FILE, create_architecture_file
+from metzuda.core.architecture_generator import ARCHITECTURE_FILENAME, create_architecture_file
 from metzuda.infra.auth import logout
 from metzuda.infra.config import save_config
 from metzuda.infra.state_manager import save_state
@@ -66,6 +72,37 @@ def update_gitignore() -> None:
         with gitignore.open("w", encoding="utf-8") as f:
             for line in lines:
                 f.write(line + "\n")
+
+
+def git_stage_files(files: list[Path]) -> bool:
+    """
+    Executa 'git add' para os arquivos fornecidos, se o diretório for um repositório Git.
+
+    Silencioso em caso de falha (não é um repo git, git não instalado, etc.).
+
+    Returns:
+        True se os arquivos foram staged com sucesso, False caso contrário.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-dir"],
+            cwd=Path.cwd(),
+            capture_output=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return False  # não é um repositório git
+
+        subprocess.run(
+            ["git", "add", "--", *[str(f) for f in files]],
+            cwd=Path.cwd(),
+            capture_output=True,
+            timeout=10,
+        )
+        return True
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False  # git não instalado ou timeout
+
 
 
 @app.command()
@@ -134,15 +171,30 @@ def init(
     # Recreate fresh ProjectArchitecture.md template
     arch_path = create_architecture_file(cfg)
 
+    # Stage versioned files in git (silently skipped if not a git repo)
+    gitignore_path = Path.cwd() / ".gitignore"
+    config_path = Path.cwd() / ".metzuda" / "config.yml"
+    staged = git_stage_files([arch_path, config_path, gitignore_path])
+
     # Report what was created
     console.print()
     console.print("[green]✓[/green] Metzuda initialized:")
     console.print(f"  [cyan].metzuda/config.yml[/cyan]        — project config (language: {detected_lang})")
-    console.print( "  [cyan].metzuda/state.json[/cyan]       — file hash cache (empty)")
+    console.print( "  [cyan].metzuda/state.json[/cyan]       — file hash cache (empty, git-ignored)")
     console.print(f"  [cyan]{arch_path.name}[/cyan]  — architecture context for AI analysis")
     console.print( "  [cyan].gitignore[/cyan]                — updated with .metzuda/ entries")
+    if staged:
+        console.print()
+        console.print(
+            "  [dim]git add[/dim] [cyan]ProjectArchitecture.md .metzuda/config.yml .gitignore[/cyan] [dim]— staged for commit[/dim]"
+        )
     console.print()
     console.print("[dim]Next steps:[/dim]")
     console.print("  1. Edit [bold]ProjectArchitecture.md[/bold] — describe your stack, auth rules, and trust boundaries")
-    console.print("  2. Run [bold cyan]metzuda scan[/bold cyan] — start scanning")
-    console.print("  3. Run [bold cyan]metzuda login[/bold cyan] — enable Layer 2 AI analysis")
+    if staged:
+        console.print("  2. Run [bold cyan]git commit -m 'chore: add metzuda'[/bold cyan]")
+        console.print("  3. Run [bold cyan]metzuda scan[/bold cyan] — start scanning")
+        console.print("  4. Run [bold cyan]metzuda login[/bold cyan] — enable Layer 2 AI analysis")
+    else:
+        console.print("  2. Run [bold cyan]metzuda scan[/bold cyan] — start scanning")
+        console.print("  3. Run [bold cyan]metzuda login[/bold cyan] — enable Layer 2 AI analysis")

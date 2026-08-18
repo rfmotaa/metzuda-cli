@@ -1,0 +1,61 @@
+rules:
+  - id: mtz-auth-from-request-body-java
+    patterns:
+      - pattern-inside: |
+          public $RET $METHOD(..., @RequestBody $TYPE $DTO, ...) { ... }
+      - pattern-either:
+          - pattern: $DTO.isAdmin()
+          - pattern: $DTO.getRole()
+    message: >-
+      Checking admin status or role from @RequestBody. Attackers can manipulate these fields in requests to gain unauthorized privileges.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-602
+      confidence: MEDIUM
+
+  - id: mtz-user-enumeration-java
+    pattern-either:
+      - pattern: ResponseEntity.badRequest().body("User not found")
+      - pattern: ResponseEntity.badRequest().body("Email not found")
+    message: >-
+      Returning 'User not found' or similar helps attackers enumerate valid users. Return a generic message instead.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-204
+      confidence: MEDIUM
+
+  - id: mtz-reset-token-no-expiry-java
+    patterns:
+      - pattern: UUID.randomUUID()
+      - pattern-not-inside: |
+          ...
+          $OBJ.setExpiresAt(...)
+          ...
+      - pattern-not-inside: |
+          ...
+          $OBJ.setTokenExpiry(...)
+          ...
+    message: >-
+      Reset token generated without setting an expiry time. Tokens should expire to mitigate long-term misuse risks.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-640
+      confidence: MEDIUM
+
+  - id: mtz-eval-runtime-exec-java
+    patterns:
+      - pattern: Runtime.getRuntime().exec($VAR)
+    message: >-
+      Calling Runtime.exec() with a variable. This can lead to Remote Code Execution (RCE) if the variable is user-controlled.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-78
+      confidence: MEDIUM

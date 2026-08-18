@@ -1,0 +1,107 @@
+rules:
+  # ── 10. Hash passwords (Java) ───────────────────────────────────────────────
+  - id: mtz-plaintext-password-java
+    pattern-either:
+      - pattern: $USER.setPassword($PASS)
+      - pattern: user.password = $PASS
+    patterns:
+      - pattern-either:
+          - pattern: $USER.setPassword($PASS)
+      - pattern-not: $USER.setPassword(passwordEncoder.encode(...))
+      - pattern-not: $USER.setPassword(bCryptPasswordEncoder.encode(...))
+      - pattern-not: $USER.setPassword(encoder.encode(...))
+    message: >-
+      Password set without encoding. Always use BCryptPasswordEncoder or
+      PasswordEncoder to hash passwords before storing. Never store plaintext.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-916
+      confidence: MEDIUM
+
+  - id: mtz-weak-hash-java
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("SHA-1")
+      - pattern: MessageDigest.getInstance("SHA1")
+    message: >-
+      MD5 and SHA-1 are cryptographically broken. Do not use them for
+      password hashing or security-sensitive integrity checks.
+      Use BCrypt, Argon2, or SHA-256+ for non-password use cases.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-327
+      confidence: HIGH
+
+  # ── 8. Block field tampering (Java/Spring) ─────────────────────────────────
+  - id: mtz-mass-assignment-java
+    pattern-either:
+      - pattern: |
+          @PostMapping(...)
+          public $RET $METHOD(@RequestBody $T $ENTITY, ...) { ... $REPO.save($ENTITY); ... }
+    message: >-
+      @RequestBody object saved directly without field validation or DTO mapping.
+      Attackers can set privileged fields (isAdmin, role). Use a DTO with only
+      allowed fields and map explicitly to your entity.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-915
+      confidence: LOW
+
+  # ── 7. Lock record access / IDOR (Java) ────────────────────────────────────
+  - id: mtz-idor-java
+    patterns:
+      - pattern: |
+          $REPO.findById($ID).get()
+      - pattern-not: |
+          if ($ENTITY.getUserId().equals($USER.getId())) { ... }
+      - pattern-not: |
+          ... .filter(e -> e.getUserId().equals(...)) ...
+    message: >-
+      Record fetched by ID without visible ownership verification. After fetching,
+      verify that the resource belongs to the authenticated user before returning it.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-639
+      confidence: LOW
+
+  # ── 19. Force HTTPS (Java/Spring) ─────────────────────────────────────────
+  - id: mtz-spring-allow-http-java
+    patterns:
+      - pattern: http.requiresChannel().anyRequest().requiresSecure()
+      - pattern-not: http.requiresChannel().anyRequest().requiresSecure()
+    message: >-
+      Spring Security configuration may not enforce HTTPS. Add
+      http.requiresChannel().anyRequest().requiresSecure() to redirect
+      all HTTP requests to HTTPS in production.
+    severity: INFO
+    languages: [java]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-319
+      confidence: LOW
+
+  # ── 33. Verify payment webhooks (Java) ────────────────────────────────────
+  - id: mtz-stripe-webhook-no-verify-java
+    patterns:
+      - pattern: |
+          @PostMapping("/webhook")
+          public $RET $METHOD($PARAMS) { ... }
+      - pattern-not: Webhook.constructEvent(...)
+    message: >-
+      Stripe webhook endpoint without Webhook.constructEvent() signature
+      verification. Without this, forged webhook events can trigger payment
+      confirmations. Always verify the Stripe-Signature header.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-345
+      confidence: MEDIUM

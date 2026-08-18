@@ -1,0 +1,80 @@
+rules:
+  # ── 16. Restrict file uploads ──────────────────────────────────────────────
+  - id: mtz-unrestricted-file-upload-js
+    patterns:
+      - pattern-either:
+          - pattern: multer({...})
+          - pattern: multer({ dest: $DEST })
+      - pattern-not: multer({..., fileFilter: ..., ...})
+      - pattern-not: multer({..., limits: ..., ...})
+    message: >-
+      Multer file upload configured without fileFilter or limits. Without
+      restrictions, attackers can upload malicious files (web shells, scripts).
+      Add fileFilter to whitelist MIME types and set limits.fileSize.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-434
+      confidence: HIGH
+
+  # ── 31. Whitelist upload types ─────────────────────────────────────────────
+  - id: mtz-file-upload-no-mimetype-check-js
+    patterns:
+      - pattern: |
+          fileFilter: function ($REQ, $FILE, $CB) {
+            ...
+          }
+      - pattern-not: |
+          fileFilter: function ($REQ, $FILE, $CB) {
+            ... $FILE.mimetype ...
+          }
+    message: >-
+      Multer fileFilter does not check file.mimetype. Without MIME type
+      validation, users can upload files with arbitrary content by spoofing
+      extensions. Check file.mimetype against an allowlist.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-434
+      confidence: MEDIUM
+
+  # ── 17. Trim API responses ─────────────────────────────────────────────────
+  - id: mtz-password-in-api-response-js
+    pattern-either:
+      - pattern: $RES.json({..., password: $VAL, ...})
+      - pattern: $RES.json({..., passwordHash: $VAL, ...})
+      - pattern: $RES.send({..., password: $VAL, ...})
+      - pattern: $RES.json($USER)
+    patterns:
+      - pattern-either:
+          - pattern: $RES.json({..., password: ..., ...})
+          - pattern: $RES.json({..., passwordHash: ..., ...})
+          - pattern: $RES.send({..., password: ..., ...})
+    message: >-
+      API response may include password or password hash field. Never expose
+      password-related fields in API responses. Explicitly select safe fields
+      using .select('-password') or destructure with exclusion.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-200
+      confidence: HIGH
+
+  - id: mtz-sensitive-field-in-response-js
+    pattern-either:
+      - pattern: $RES.json({..., secret: $VAL, ...})
+      - pattern: $RES.json({..., privateKey: $VAL, ...})
+      - pattern: $RES.json({..., apiKey: $VAL, ...})
+      - pattern: $RES.json({..., api_key: $VAL, ...})
+    message: >-
+      Sensitive field (secret, privateKey, apiKey) included in API response.
+      Review and ensure sensitive fields are excluded from all API responses.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-200
+      confidence: HIGH

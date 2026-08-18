@@ -1,0 +1,72 @@
+rules:
+  - id: mtz-unrestricted-file-upload-py
+    patterns:
+      - pattern-either:
+          - pattern: request.files['$FILE']
+          - pattern: request.files.get('$FILE')
+      - pattern-not-inside: |
+          if $FILE.content_type ...:
+            ...
+      - pattern-not-inside: |
+          if $FILE.mimetype ...:
+            ...
+    message: >-
+      File upload accessed without validating the content_type or mimetype.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-434
+      confidence: LOW
+
+  - id: mtz-file-upload-no-extension-py
+    patterns:
+      - pattern-either:
+          - pattern: $FILE.save(...)
+          - pattern: $FILE.filename
+      - pattern-not-inside: |
+          allowed_file(...)
+          ...
+      - pattern-not-inside: |
+          splitext(...)
+          ...
+    message: >-
+      File saved or filename accessed without explicitly checking the extension.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-434
+      confidence: MEDIUM
+
+  - id: mtz-password-in-response-py
+    patterns:
+      - pattern-either:
+          - pattern: jsonify({..., 'password': $VAL, ...})
+          - pattern: return {..., 'password': $VAL, ...}
+    message: >-
+      Password returned in JSON response.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-200
+      confidence: HIGH
+
+  - id: mtz-sensitive-field-in-response-py
+    patterns:
+      - pattern-either:
+          - pattern: jsonify({..., 'secret': $VAL, ...})
+          - pattern: jsonify({..., 'api_key': $VAL, ...})
+          - pattern: jsonify({..., 'private_key': $VAL, ...})
+          - pattern: return {..., 'secret': $VAL, ...}
+          - pattern: return {..., 'api_key': $VAL, ...}
+          - pattern: return {..., 'private_key': $VAL, ...}
+    message: >-
+      Sensitive field (secret, api_key, private_key) returned in JSON response.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-200
+      confidence: HIGH

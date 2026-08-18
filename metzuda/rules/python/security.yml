@@ -1,0 +1,154 @@
+rules:
+  # ── 10. Hash passwords (Python) ────────────────────────────────────────────
+  - id: mtz-plaintext-password-py
+    patterns:
+      - pattern-either:
+          - pattern: $OBJ.password = $REQ.password
+          - pattern: $USER.password = $DATA["password"]
+          - pattern: password = request.json.get("password")
+      - pattern-not: $OBJ.password = bcrypt.hashpw(...)
+      - pattern-not: $OBJ.password = bcrypt.generate_password_hash(...)
+      - pattern-not: $OBJ.password = argon2.hash(...)
+      - pattern-not: $OBJ.password = make_password(...)
+    message: >-
+      Password may be stored without hashing. Always hash passwords using
+      bcrypt, argon2, or Django's make_password before persisting.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-916
+      confidence: MEDIUM
+
+  - id: mtz-weak-hash-py
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    message: >-
+      MD5 and SHA-1 are cryptographically broken for security-sensitive uses
+      like password hashing. Use bcrypt, argon2, or hashlib.sha256+ for
+      non-password integrity checks.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-327
+      confidence: HIGH
+
+  # ── 15. Escape user content / XSS (Python/Jinja) ───────────────────────────
+  - id: mtz-jinja2-autoescape-disabled-py
+    pattern-either:
+      - pattern: jinja2.Environment(autoescape=False, ...)
+      - pattern: jinja2.Environment(..., autoescape=False)
+      - pattern: Environment(autoescape=False, ...)
+    message: >-
+      Jinja2 Environment created with autoescape=False. Disabling autoescaping
+      allows XSS attacks via unescaped user-controlled template variables.
+      Use autoescape=True or jinja2.select_autoescape().
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-79
+      confidence: HIGH
+
+  - id: mtz-flask-markup-unsafe-py
+    pattern-either:
+      - pattern: flask.Markup($VAR)
+      - pattern: Markup($VAR)
+    message: >-
+      flask.Markup() marks a string as safe, bypassing Jinja2 autoescaping.
+      If $VAR contains user input, this causes XSS. Only use Markup() on
+      values you have already sanitized or that are not user-controlled.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-79
+      confidence: MEDIUM
+
+  # ── 8. Block field tampering (mass assignment - Python) ─────────────────────
+  - id: mtz-mass-assignment-py
+    pattern-either:
+      - pattern: $MODEL(**request.json)
+      - pattern: $MODEL(**request.form)
+      - pattern: $MODEL(**data)
+      - pattern: $OBJ.__dict__.update(request.json)
+    message: >-
+      Model created or updated directly from unfiltered request data. Mass
+      assignment can allow attackers to set privileged fields (is_admin, role).
+      Explicitly list allowed fields before passing to the model.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-915
+      confidence: MEDIUM
+
+  # ── 9. Secure session cookies (Python/Flask) ────────────────────────────────
+  - id: mtz-flask-session-no-secret-py
+    patterns:
+      - pattern: Flask(__name__)
+      - pattern-not: app.secret_key = ...
+      - pattern-not: app.config['SECRET_KEY'] = ...
+      - pattern-not: app.config["SECRET_KEY"] = ...
+    message: >-
+      Flask app created without a SECRET_KEY configured. Without a secret key,
+      sessions are insecure and cookies can be forged. Set:
+      app.secret_key = os.environ.get('SECRET_KEY').
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-614
+      confidence: LOW
+
+  # ── 19. Force HTTPS / Debug mode off ───────────────────────────────────────
+  - id: mtz-flask-debug-mode-py
+    pattern-either:
+      - pattern: app.run(..., debug=True, ...)
+      - pattern: app.run(debug=True)
+    message: >-
+      Flask running with debug=True. Debug mode exposes an interactive debugger
+      and enables code execution via the browser. Never use debug=True in
+      production. Use environment variables to control this.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-94
+      confidence: HIGH
+
+  # ── 7. Lock record access / IDOR (Python) ──────────────────────────────────
+  - id: mtz-idor-py
+    pattern-either:
+      - pattern: $Model.query.get(request.args.get($ID))
+      - pattern: $Model.query.filter_by(id=request.args.get($ID)).first()
+      - pattern: $Model.objects.get(id=request.data.get($ID))
+    message: >-
+      Record fetched from URL/query parameter without ownership check. Verify
+      that the fetched record belongs to the authenticated user before returning.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-639
+      confidence: MEDIUM
+
+  # ── 38. Log security events (Python) ───────────────────────────────────────
+  - id: mtz-bare-except-security-py
+    pattern: |
+      try:
+        ...
+      except:
+        pass
+    message: >-
+      Bare except clause silently swallows all exceptions including security
+      errors. Use specific exception types and log failures to support incident
+      response.
+    severity: INFO
+    languages: [python]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-778
+      confidence: HIGH

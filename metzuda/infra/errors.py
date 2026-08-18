@@ -1,9 +1,17 @@
-"""Custom exception classes for Metzuda infrastructure."""
+"""
+metzuda/infra/errors.py
 
-class QuotaExceededError(Exception):
-    """Raised when the user's monthly AI scan quota is exceeded."""
-    pass
+Re-exports de metzuda.exceptions para compatibilidade retroativa.
+Novos módulos devem importar diretamente de metzuda.exceptions.
+"""
 
-class RateLimitError(Exception):
-    """Raised when API rate limits are exceeded."""
-    pass
+# Re-export para manter compatibilidade com imports existentes
+from metzuda.exceptions import (  # noqa: F401
+    MetzudaError,
+    NetworkError,
+    UnauthorizedError,
+    QuotaExceededError,
+    ConfigError,
+    SemgrepNotFoundError,
+    RateLimitError,
+)

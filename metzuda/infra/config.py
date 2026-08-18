@@ -1,16 +1,28 @@
-"""Manages project configuration file operations for Metzuda."""
+"""
+metzuda/infra/config.py
 
-import os
+Gerencia leitura e escrita do .metzuda/config.yml do projeto.
+Responsável pela configuração local de projeto, não de ambiente.
+Configuração de ambiente (URLs, credenciais) fica em metzuda.config.settings.
+"""
+
 from pathlib import Path
+
 import yaml
 
+from metzuda.config.settings import settings
 from metzuda.models.config import MetzudaConfig
 from metzuda.models.finding import Severity
 
 
 def get_api_url() -> str:
-    """Returns the Metzuda API URL from environment variable or default localhost:3000."""
-    return os.getenv("METZUDA_API_URL", "http://localhost:3000").rstrip("/")
+    """
+    Retorna a URL base da API Metzuda.
+
+    Deprecated: importe `from metzuda.config.settings import settings` e use
+    `settings.api_url` diretamente. Mantido para compatibilidade retroativa.
+    """
+    return settings.api_url
 
 
 def load_config() -> MetzudaConfig:

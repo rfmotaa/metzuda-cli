@@ -1,4 +1,10 @@
-"""HTTP Client for sending analysis requests to Metzuda API."""
+"""
+metzuda/infra/backend_client.py
+
+Cliente HTTP para enviar requests de análise à Metzuda API.
+Usa endpoints centralizados de metzuda.config.endpoints.
+Lança exceções tipadas de metzuda.exceptions.
+"""
 
 from pathlib import Path
 import uuid
@@ -6,17 +12,26 @@ import uuid
 import httpx
 
 from metzuda.cli.renderer import console
+from metzuda.config.endpoints import endpoints
+from metzuda.config.settings import settings
+from metzuda.exceptions import NetworkError, QuotaExceededError, RateLimitError, UnauthorizedError
 from metzuda.infra.auth import get_auth_header, is_logged_in
-from metzuda.infra.config import get_api_url
-from metzuda.infra.errors import QuotaExceededError, RateLimitError
 from metzuda.models.finding import Finding, Severity, Source
 
 
 class BackendClient:
-    def __init__(self, api_url: str | None = None):
-        self.api_url = (api_url or get_api_url()).rstrip("/")
+    """
+    Cliente para comunicação com a Metzuda API.
+
+    Centraliza todas as chamadas HTTP autenticadas ao backend.
+    A URL da API é lida de settings.api_url (configurável via METZUDA_API_URL).
+    """
+
+    def __init__(self, api_url: str | None = None) -> None:
+        self.api_url = (api_url or settings.api_url).rstrip("/")
 
     def is_available(self) -> bool:
+        """Retorna True se o usuário está autenticado e pode usar o backend."""
         return is_logged_in()
 
     def analyze(
@@ -28,7 +43,16 @@ class BackendClient:
         language: str = "javascript",
         ai_provider: str | None = None,
     ) -> list[Finding]:
+        """
+        Envia arquivos para análise de AI no backend.
 
+        Returns:
+            Lista de findings encontrados pelo backend.
+
+        Raises:
+            QuotaExceededError: Quota mensal atingida.
+            RateLimitError: Rate limit da API.
+        """
         auth_header = get_auth_header()
         if not auth_header:
             return []
@@ -91,7 +115,7 @@ class BackendClient:
         if valid_lang not in ("javascript", "typescript", "python", "java"):
             valid_lang = "javascript"
 
-        payload = {
+        payload: dict = {
             "scan_id": str(uuid.uuid4()),
             "language": valid_lang,
             "project_files": project_files,
@@ -105,7 +129,7 @@ class BackendClient:
         try:
             with httpx.Client(timeout=120) as client:
                 response = client.post(
-                    f"{self.api_url}/v1/analyze",
+                    endpoints.analyze,
                     json=payload,
                     headers={"Authorization": auth_header},
                 )
@@ -130,7 +154,7 @@ class BackendClient:
                 return findings
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                err_data = {}
+                err_data: dict = {}
                 try:
                     err_data = e.response.json()
                 except Exception:
@@ -148,27 +172,46 @@ class BackendClient:
             return []  # never crash the scan
 
     def create_checkout_session(self, plan: str) -> dict:
+        """
+        Cria uma sessão de checkout Stripe para o plano especificado.
+
+        Raises:
+            UnauthorizedError: Usuário não autenticado.
+            NetworkError: Falha de conexão.
+        """
         auth_header = get_auth_header()
         if not auth_header:
-            raise RuntimeError("Not authenticated")
-        with httpx.Client(timeout=30) as client:
-            response = client.post(
-                f"{self.api_url}/billing/checkout",
-                json={"plan": plan},
-                headers={"Authorization": auth_header},
-            )
-            response.raise_for_status()
-            return response.json()
+            raise UnauthorizedError("Not authenticated. Run: metzuda login")
+        try:
+            with httpx.Client(timeout=30) as client:
+                response = client.post(
+                    endpoints.billing_checkout,
+                    json={"plan": plan},
+                    headers={"Authorization": auth_header},
+                )
+                response.raise_for_status()
+                return response.json()
+        except httpx.RequestError as exc:
+            raise NetworkError(f"Could not connect to {endpoints.billing_checkout}") from exc
 
     def open_billing_portal(self) -> dict:
+        """
+        Abre o portal de billing do Stripe para o usuário autenticado.
+
+        Raises:
+            UnauthorizedError: Usuário não autenticado.
+            NetworkError: Falha de conexão.
+        """
         auth_header = get_auth_header()
         if not auth_header:
-            raise RuntimeError("Not authenticated")
-        with httpx.Client(timeout=30) as client:
-            response = client.post(
-                f"{self.api_url}/billing/portal",
-                headers={"Authorization": auth_header},
-            )
-            response.raise_for_status()
-            return response.json()
-
+            raise UnauthorizedError("Not authenticated. Run: metzuda login")
+        try:
+            with httpx.Client(timeout=30) as client:
+                response = client.post(
+                    endpoints.billing_portal,
+                    headers={"Authorization": auth_header},
+                )
+                response.raise_for_status()
+                return response.json()
+        except httpx.RequestError as exc:
+            raise NetworkError(f"Could not connect to {endpoints.billing_portal}") from exc

@@ -1,0 +1,57 @@
+rules:
+  # ── 9. Secure session cookies ──────────────────────────────────────────────
+  - id: mtz-insecure-session-cookie-js
+    pattern-either:
+      - pattern: |
+          $APP.use(session({ ..., cookie: {...}, ... }))
+      - pattern: res.cookie($NAME, $VAL, {...})
+    patterns:
+      - pattern-either:
+          - pattern: res.cookie($NAME, $VAL, {...})
+          - pattern: $APP.use(session({..., cookie: $C, ...}))
+      - pattern-not: res.cookie($NAME, $VAL, {..., httpOnly: true, ...})
+      - pattern-not: res.cookie($NAME, $VAL, {..., secure: true, ...})
+    message: >-
+      Cookie set without HttpOnly or Secure flags. Missing flags expose session
+      cookies to XSS theft and transmission over plain HTTP.
+      Set { httpOnly: true, secure: true, sameSite: 'strict' }.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-614
+      confidence: MEDIUM
+
+  # ── 39. Set secure cookie flags ────────────────────────────────────────────
+  - id: mtz-cookie-missing-samesite-js
+    patterns:
+      - pattern: res.cookie($NAME, $VAL, $OPTS)
+      - pattern-not: res.cookie($NAME, $VAL, {..., sameSite: ..., ...})
+    message: >-
+      Cookie set without sameSite flag. Without sameSite, cookies are vulnerable
+      to Cross-Site Request Forgery (CSRF) attacks. Add sameSite: 'strict' or 'lax'.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-352
+      confidence: MEDIUM
+
+  # ── 22. Add CSRF tokens ────────────────────────────────────────────────────
+  - id: mtz-no-csrf-protection-js
+    patterns:
+      - pattern-either:
+          - pattern: $APP.use(session(...))
+          - pattern: $APP.use(cookieParser(...))
+      - pattern-not: $APP.use(csrf(...))
+      - pattern-not: $APP.use(csurf(...))
+    message: >-
+      Session middleware detected without CSRF protection middleware (csrf/csurf).
+      State-changing POST/PUT/DELETE routes are vulnerable to CSRF attacks.
+      Add app.use(csrf()) or use SameSite cookie attribute.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-352
+      confidence: LOW

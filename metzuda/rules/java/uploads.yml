@@ -1,0 +1,74 @@
+rules:
+  - id: mtz-unrestricted-file-upload-java
+    patterns:
+      - pattern-either:
+          - pattern: $FILE.transferTo(...)
+          - pattern: $FILE.getBytes(...)
+      - pattern-not-inside: |
+          ...
+          $FILE.getContentType()
+          ...
+    message: >-
+      File uploaded without checking its Content-Type. This may allow malicious files to be uploaded.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-434
+      confidence: MEDIUM
+
+  - id: mtz-file-upload-no-extension-java
+    patterns:
+      - pattern: $FILE.getOriginalFilename()
+      - pattern-not-inside: |
+          ...
+          FilenameUtils.getExtension(...)
+          ...
+      - pattern-not-inside: |
+          ...
+          $F.endsWith(...)
+          ...
+    message: >-
+      Uploaded file name accessed without checking file extension. Attackers can upload dangerous file types.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-434
+      confidence: MEDIUM
+
+  - id: mtz-password-in-response-java
+    patterns:
+      - pattern-inside: |
+          @JsonProperty("password")
+          $TYPE $FIELD;
+      - pattern-not-inside: |
+          @JsonIgnore
+          @JsonProperty("password")
+          $TYPE $FIELD;
+    message: >-
+      Password field mapped to JSON without @JsonIgnore. It could be accidentally leaked in responses.
+    severity: WARNING
+    languages: [java]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-200
+      confidence: MEDIUM
+
+  - id: mtz-sensitive-field-exposed-java
+    patterns:
+      - pattern-either:
+          - pattern: $TYPE password;
+          - pattern: $TYPE apiKey;
+          - pattern: $TYPE secretKey;
+      - pattern-not-inside: |
+          @JsonIgnore
+          $TYPE $FIELD;
+    message: >-
+      Sensitive field exposed in class without @JsonIgnore. It might be leaked via API responses.
+    severity: ERROR
+    languages: [java]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-200
+      confidence: MEDIUM

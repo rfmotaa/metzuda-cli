@@ -1,0 +1,101 @@
+rules:
+  # ── 14. Validate all input ─────────────────────────────────────────────────
+  - id: mtz-no-input-validation-js
+    patterns:
+      - pattern-either:
+          - pattern: $APP.post($PATH, async ($REQ, $RES) => { ... $REQ.body.$FIELD ... })
+          - pattern: $APP.put($PATH, async ($REQ, $RES) => { ... $REQ.body.$FIELD ... })
+      - pattern-not: $APP.post($PATH, ..., validate(...), ...)
+      - pattern-not: $APP.post($PATH, ..., check(...), ...)
+      - pattern-not: $APP.post($PATH, ..., body(...), ...)
+      - pattern-not: $APP.post($PATH, ..., schema.parse(...), ...)
+      - pattern-not: $APP.post($PATH, ..., $SCHEMA.parse(...), ...)
+    message: >-
+      Route handler accesses req.body without visible input validation middleware
+      (express-validator, joi, zod). Unvalidated input is the root cause of
+      injection attacks. Add schema validation before processing user data.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: LOW
+
+  # ── 15. Escape user content ────────────────────────────────────────────────
+  - id: mtz-xss-innerhtml-js
+    pattern-either:
+      - pattern: $EL.innerHTML = $VAR
+      - pattern: document.write($VAR)
+      - pattern: $EL.outerHTML = $VAR
+    message: >-
+      Direct assignment to innerHTML/outerHTML or document.write with a variable
+      can lead to Cross-Site Scripting (XSS). Sanitize with DOMPurify or use
+      textContent instead of innerHTML.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: CRITICAL
+      cwe: CWE-79
+      confidence: HIGH
+
+  - id: mtz-xss-dangerouslysetinnerhtml-js
+    pattern: <$EL dangerouslySetInnerHTML={{__html: $VAR}} />
+    message: >-
+      dangerouslySetInnerHTML used with a variable. Ensure the value is
+      sanitized with DOMPurify before rendering to prevent XSS attacks.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-79
+      confidence: HIGH
+
+  # ── 26. Sanitize before storing ────────────────────────────────────────────
+  - id: mtz-unsanitized-user-input-db-js
+    patterns:
+      - pattern-either:
+          - pattern: $DB.insert({..., $FIELD: $REQ.body.$F, ...})
+          - pattern: $DB.create({..., $FIELD: $REQ.body.$F, ...})
+          - pattern: $MODEL.create({..., $FIELD: $REQ.body.$F, ...})
+      - pattern-not: $DB.insert({..., $FIELD: sanitize($REQ.body.$F), ...})
+      - pattern-not: $DB.insert({..., $FIELD: escape($REQ.body.$F), ...})
+    message: >-
+      Request body data written directly to database without sanitization.
+      Validate and sanitize user-provided data before persisting it to prevent
+      stored XSS and injection attacks.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: HIGH
+      cwe: CWE-20
+      confidence: MEDIUM
+
+  # ── 23. Limit request size ─────────────────────────────────────────────────
+  - id: mtz-no-request-size-limit-js
+    patterns:
+      - pattern: $APP.use(express.json(...))
+      - pattern-not: $APP.use(express.json({..., limit: ..., ...}))
+    message: >-
+      express.json() used without a size limit. Without limits, the server is
+      vulnerable to denial-of-service attacks via large payloads.
+      Set a limit: express.json({ limit: '10kb' }).
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-400
+      confidence: HIGH
+
+  - id: mtz-no-urlencoded-size-limit-js
+    patterns:
+      - pattern: $APP.use(express.urlencoded(...))
+      - pattern-not: $APP.use(express.urlencoded({..., limit: ..., ...}))
+    message: >-
+      express.urlencoded() used without a size limit. Apply { limit: '10kb' }
+      to prevent DoS via oversized form submissions.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      metzuda-severity: LOW
+      cwe: CWE-400
+      confidence: HIGH

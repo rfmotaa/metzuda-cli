@@ -1,6 +1,10 @@
 # ============================================================
 # metzuda-cli — .gitignore (PUBLIC REPO)
 # ============================================================
+
+# --- Build artefacts (nunca versionar) ---
+dist/
+*.egg-info/
 # Atenção: repo público — nunca commitar secrets, tokens,
 # resultados de análise de projetos reais, ou dados de usuários.
 # ============================================================
